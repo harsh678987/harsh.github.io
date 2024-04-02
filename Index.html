@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Beautiful JavaScript Game</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: #f8f8f8;
+    }
+
+    canvas {
+      border: 2px solid #333;
+      background-color: #fff;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+    }
+
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 24px;
+      color: #333;
+      background-color: orange;
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+
+    #lives {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 24px;
+      color: #333;
+      background-color: orange;
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+
+    #modePanel, #gameOverPanel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #modeSelection, #gameOverMessage {
+      background-color: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .modeButton {
+      padding: 10px 20px;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 0 10px;
+      transition: background-color 0.3s ease;
+    }
+
+    .modeButton:hover {
+      background-color: #555;
+    }
+
+    #restartButton {
+      padding: 10px 20px;
+      background-color: #333;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 20px;
+      transition: background-color 0.3s ease;
+    }
+
+    #restartButton:hover {
+      background-color: #555;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div id="score">Score: <span id="scoreValue">0</span></div>
+  <div id="lives">Lives: <span id="livesValue">3</span></div>
+
+  <div id="modePanel">
+    <div id="modeSelection">
+      <h2 style="color: #333;">Select Game Mode:</h2>
+      <button class="modeButton" id="easyMode" style="background-color: #4CAF50;">Easy</button>
+      <button class="modeButton" id="normalMode" style="background-color: #2196F3;">Normal</button>
+      <button class="modeButton" id="hardMode" style="background-color: #f44336;">Hard</button>
+    </div>
+  </div>
+
+  <div id="gameOverPanel">
+    <div id="gameOverMessage">
+      <h2 style="color: #333;">Game Over</h2>
+      <p>Your score: <span id="finalScore">0</span></p>
+      <button id="restartButton">Restart</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let playerX = canvas.width / 2;
+    const playerY = canvas.height - 30;
+    const playerWidth = 100; // Increased player width
+    const playerHeight = 10;
+    let dx = 0; // Change in X position
+    const paddleSpeed = 10;
+
+    let balls = [];
+    const ballRadius = 10;
+
+    let score = 0;
+    const scoreDisplay = document.getElementById('scoreValue');
+
+    let lives = 3;
+    const livesDisplay = document.getElementById('livesValue');
+
+    const modePanel = document.getElementById('modePanel');
+    const easyModeButton = document.getElementById('easyMode');
+    const normalModeButton = document.getElementById('normalMode');
+    const hardModeButton = document.getElementById('hardMode');
+
+    const gameOverPanel = document.getElementById('gameOverPanel');
+    const finalScoreDisplay = document.getElementById('finalScore');
+    const restartButton = document.getElementById('restartButton');
+
+    let ballTimer; // Timer for ball summoning
+
+    easyModeButton.addEventListener('click', () => startGame('easy'));
+    normalModeButton.addEventListener('click', () => startGame('normal'));
+    hardModeButton.addEventListener('click', () => startGame('hard'));
+
+    restartButton.addEventListener('click', () => {
+      gameOverPanel.style.display = 'none';
+      initializeGame();
+    });
+
+    function startGame(mode) {
+      modePanel.style.display = 'none';
+      gameOverPanel.style.display = 'none';
+      initializeGame(mode);
+      document.addEventListener('keydown', keyDownHandler, false);
+      document.addEventListener('keyup', keyUpHandler, false);
+    }
+
+    function initializeGame(mode) {
+      // Reset player and game state
+      playerX = canvas.width / 2;
+      score = 0;
+      lives = mode === 'easy' ? 5 : mode === 'normal' ? 3 : 1;
+
+      // Update UI
+      scoreDisplay.textContent = score;
+      livesDisplay.textContent = lives;
+
+      // Clear previous intervals and balls
+      clearInterval(ballTimer);
+      balls = [];
+
+      // Start game loop
+      draw();
+
+      // Start ball summoning timer
+      ballTimer = setInterval(() => createBall(mode), 2000); // Adjust the interval for smoother summoning
+    }
+
+    function drawPlayer() {
+      ctx.beginPath();
+      ctx.rect(playerX, playerY, playerWidth, playerHeight);
+      ctx.fillStyle = '#333';
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawBall(ball) {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ballRadius, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff4500';
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function createBall(mode) {
+      let x = Math.random() * canvas.width;
+      const y = 0;
+
+      if (mode === 'hard') {
+        for (let i = 0; i < 3; i++) {
+          balls.push({ x: x + i * 30, y });
+        }
+      } else if (mode === 'normal') {
+        for (let i = 0; i < 2; i++) {
+          balls.push({ x: x + i * 30, y });
+        }
+      } else {
+        balls.push({ x, y });
+      }
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawPlayer();
+
+      const remainingBalls = []; // Array to store balls still on canvas
+
+      balls.forEach((ball, index) => {
+        drawBall(ball);
+        ball.y += 2;
+
+        if (ball.y <= playerY && ball.y + ballRadius >= playerY && ball.x > playerX && ball.x < playerX + playerWidth) {
+          score++;
+          scoreDisplay.textContent = score;
+        } else {
+          remainingBalls.push(ball); // Only add ball to remainingBalls if it's not touching the player
+        }
+
+        if (ball.y > canvas.height && lives > 0) {
+          lives--;
+          livesDisplay.textContent = lives;
+
+          if (lives === 0) {
+            showGameOver();
+            return;
+          }
+        }
+      });
+
+      balls = remainingBalls; // Update balls array with remaining balls
+
+      // Move the paddle smoothly
+      playerX += dx;
+      if (playerX < 0) playerX = 0;
+      if (playerX + playerWidth > canvas.width) playerX = canvas.width - playerWidth;
+
+      requestAnimationFrame(draw);
+    }
+
+    function showGameOver() {
+      clearInterval(ballTimer);
+      gameOverPanel.style.display = 'flex';
+      finalScoreDisplay.textContent = score;
+    }
+
+    function keyDownHandler(e) {
+      if (e.key === 'Right' || e.key === 'ArrowRight') {
+        dx = paddleSpeed;
+      } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+        dx = -paddleSpeed;
+      }
+    }
+
+    function keyUpHandler(e) {
+      if (e.key === 'Right' || e.key === 'ArrowRight' || e.key === 'Left' || e.key === 'ArrowLeft') {
+        dx = 0;
+      }
+    }
+
+    // Initial game setup
+    modePanel.style.display = 'flex';
+
+  </script>
+</body>
+</html>
